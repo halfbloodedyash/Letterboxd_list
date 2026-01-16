@@ -1,26 +1,91 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-outfit);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --bg-dark: #0f1115;
+  --bg-card: #181c22;
+  --brand-green: #00e054;
+  --brand-blue: #40bcf4;
+  --brand-orange: #ff8000;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #0f1115;
+  color: #ffffff;
+  min-height: 100vh;
+  /* Subtle ambient gradient */
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(64, 188, 244, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 128, 0, 0.05) 0%, transparent 40%);
+}
+
+/* Glass Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.glass-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 2px rgba(0, 224, 84, 0.15);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
 }
