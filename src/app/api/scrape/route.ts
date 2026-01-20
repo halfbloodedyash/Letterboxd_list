@@ -19,17 +19,31 @@ export async function POST(request: NextRequest) {
     // Resolve short links to full Letterboxd URLs
     if (isShortLink) {
       try {
+        // Use manual redirect to capture the Location header
         const resolveResponse = await fetch(url, {
-          method: 'HEAD',
-          redirect: 'follow',
+          method: 'GET',
+          redirect: 'manual',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
         });
-        
-        // Get the final URL after redirect
-        url = resolveResponse.url;
-        
+
+        // Get the redirect location from the 301/302 response
+        const redirectUrl = resolveResponse.headers.get('location');
+
+        if (redirectUrl) {
+          url = redirectUrl;
+        } else if (resolveResponse.url && resolveResponse.url.startsWith('https://letterboxd.com/')) {
+          // Fallback: some environments may auto-follow and give us the final URL
+          url = resolveResponse.url;
+        } else {
+          // If no redirect found, the short link may be invalid
+          return NextResponse.json(
+            { error: 'The short link did not redirect to a Letterboxd page. Please check the link.' },
+            { status: 400 }
+          );
+        }
+
         // Verify it resolved to a letterboxd.com URL
         if (!url.startsWith('https://letterboxd.com/')) {
           return NextResponse.json(
@@ -37,7 +51,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        
+
         console.log(`Resolved short link to: ${url}`);
       } catch (resolveError) {
         console.error('Failed to resolve short link:', resolveError);
