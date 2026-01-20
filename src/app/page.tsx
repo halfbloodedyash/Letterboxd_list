@@ -130,7 +130,7 @@ export default function Home() {
                     type="text"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://letterboxd.com/username/list/list-name/"
+                    placeholder="Paste URL or short link (boxd.it/...)"
                     required
                     className="w-full glass-input rounded-xl px-6 py-5 text-lg text-white placeholder-white/20 outline-none"
                   />

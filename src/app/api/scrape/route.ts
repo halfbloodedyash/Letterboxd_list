@@ -3,14 +3,49 @@ import * as cheerio from 'cheerio';
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    let { url } = await request.json();
 
-    // Validate URL
-    if (!url || !url.startsWith('https://letterboxd.com/')) {
+    // Validate URL - accept both letterboxd.com and boxd.it short links
+    const isLetterboxdUrl = url && url.startsWith('https://letterboxd.com/');
+    const isShortLink = url && (url.startsWith('https://boxd.it/') || url.startsWith('http://boxd.it/'));
+
+    if (!url || (!isLetterboxdUrl && !isShortLink)) {
       return NextResponse.json(
-        { error: 'Please enter a valid Letterboxd URL.' },
+        { error: 'Please enter a valid Letterboxd URL or short link (boxd.it).' },
         { status: 400 }
       );
+    }
+
+    // Resolve short links to full Letterboxd URLs
+    if (isShortLink) {
+      try {
+        const resolveResponse = await fetch(url, {
+          method: 'HEAD',
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        
+        // Get the final URL after redirect
+        url = resolveResponse.url;
+        
+        // Verify it resolved to a letterboxd.com URL
+        if (!url.startsWith('https://letterboxd.com/')) {
+          return NextResponse.json(
+            { error: 'The short link did not resolve to a valid Letterboxd page.' },
+            { status: 400 }
+          );
+        }
+        
+        console.log(`Resolved short link to: ${url}`);
+      } catch (resolveError) {
+        console.error('Failed to resolve short link:', resolveError);
+        return NextResponse.json(
+          { error: 'Failed to resolve the short link. Please try the full Letterboxd URL instead.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Handle pagination - Letterboxd lists can have multiple pages
