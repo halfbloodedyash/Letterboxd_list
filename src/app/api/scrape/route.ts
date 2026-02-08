@@ -6,7 +6,48 @@ export async function POST(request: NextRequest) {
     const { url } = await request.json();
 
     // Validate URL
-    if (!url || !url.startsWith('https://letterboxd.com/')) {
+    if (!url) {
+      return NextResponse.json(
+        { error: 'Please enter a valid Letterboxd URL.' },
+        { status: 400 }
+      );
+    }
+
+    let targetUrl = url;
+
+    // Handle boxd.it short URLs
+    if (url.startsWith('https://boxd.it/')) {
+      try {
+        const redirectResponse = await fetch(url, {
+          method: 'HEAD',
+          redirect: 'manual',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        if (redirectResponse.status >= 300 && redirectResponse.status < 400) {
+          const location = redirectResponse.headers.get('location');
+          if (location && location.startsWith('https://letterboxd.com/')) {
+            targetUrl = location;
+          } else {
+            return NextResponse.json(
+              { error: 'Short URL did not redirect to a valid Letterboxd page.' },
+              { status: 400 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: 'Could not resolve short URL.' },
+            { status: 400 }
+          );
+        }
+      } catch (e) {
+        return NextResponse.json(
+          { error: 'Failed to resolve short URL.' },
+          { status: 400 }
+        );
+      }
+    } else if (!url.startsWith('https://letterboxd.com/')) {
       return NextResponse.json(
         { error: 'Please enter a valid Letterboxd URL.' },
         { status: 400 }
@@ -18,19 +59,42 @@ export async function POST(request: NextRequest) {
     let currentPage = 1;
     let hasMorePages = true;
 
-    // Normalize the URL - remove trailing slash and handle pagination
-    let baseUrl = url.replace(/\/+$/, '');
+    // Normalize the URL using the URL API
+    let baseUrl = '';
+    try {
+      const urlObj = new URL(targetUrl);
+      // Remove trailing slash from pathname if present, then add it back to ensure consistency
+      // actually, just ensure it ends with /
+      let cleanPathname = urlObj.pathname.replace(/\/+$/, '') + '/';
 
-    // If URL already has /page/X, extract base URL
-    const pageMatch = baseUrl.match(/(.*)\/page\/\d+/);
-    if (pageMatch) {
-      baseUrl = pageMatch[1];
+      // Reconstruct URL without query params or hash
+      baseUrl = `${urlObj.origin}${cleanPathname}`;
+    } catch (e) {
+      return NextResponse.json(
+        { error: 'Invalid URL format.' },
+        { status: 400 }
+      );
     }
 
-    while (hasMorePages && currentPage <= 20) { // Limit to 20 pages max
-      const pageUrl = currentPage === 1 ? baseUrl : `${baseUrl}/page/${currentPage}/`;
+    // If URL already has /page/X, extract base URL
+    // We can do this safely now that we have a clean base URL
+    const pageMatch = baseUrl.match(/(.*)\/page\/\d+\/?$/);
+    if (pageMatch) {
+      baseUrl = pageMatch[1];
+      // Ensure it ends with /
+      if (!baseUrl.endsWith('/')) {
+        baseUrl += '/';
+      }
+    }
+    // Ensure no trailing slash after regex extraction just in case
+    // baseUrl = baseUrl.replace(/\/+$/, '');
 
-      console.log(`Fetching page ${currentPage}: ${pageUrl}`);
+
+    while (hasMorePages && currentPage <= 20) { // Limit to 20 pages max
+      // baseUrl already has trailing slash, so we append page/X/ directly
+      const pageUrl = currentPage === 1 ? baseUrl : `${baseUrl}page/${currentPage}/`;
+
+
 
       const response = await fetch(pageUrl, {
         headers: {
@@ -42,9 +106,10 @@ export async function POST(request: NextRequest) {
       });
 
       if (!response.ok) {
+        console.error(`Failed to fetch page ${currentPage}. Status: ${response.status} ${response.statusText}`);
         if (currentPage === 1) {
           return NextResponse.json(
-            { error: 'Failed to fetch the Letterboxd page. Please check the URL.' },
+            { error: `Failed to fetch the Letterboxd page. Status: ${response.status}` },
             { status: 400 }
           );
         }
@@ -118,7 +183,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      console.log(`Found ${pageMovies.length} movies on page ${currentPage}`);
+
 
       if (pageMovies.length === 0) {
         hasMorePages = false;
